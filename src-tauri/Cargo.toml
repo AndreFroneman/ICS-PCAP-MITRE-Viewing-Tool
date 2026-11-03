@@ -1,8 +1,8 @@
 [package]
 name = "primer"
-version = "1.0.1"
-description = "Primer packet capture analyser"
-authors = ["Horizon"]
+version = "2.0.0"
+description = "Primer packet capture investigation tool"
+authors = ["Andre Froneman"]
 edition = "2021"
 
 [lib]
@@ -20,3 +20,7 @@ tauri-plugin-http = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 keyring = "3"
+rusqlite = { version = "0.32", features = ["bundled"] }
+sha2 = "0.10"
+flate2 = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }

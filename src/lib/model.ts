@@ -127,7 +127,20 @@ export interface Row {
   dhcpKind?: string;
   dhcpHost?: string;
   dhcpIp?: string;
+  /** DHCP option 60, when the capture actually contains it. */
+  dhcpVendor?: string;
   opcUrl?: string;
+  /** IPv4 TTL or IPv6 hop limit. A stack habit, not a place. */
+  ttl?: number;
+  /** Short TCP option list, for example "mss:1460,nop,sack,ts". */
+  tcpOptions?: string;
+  httpUa?: string;
+  /** SMB2 dialect name, only when a negotiate response named one we recognise. */
+  smbDialect?: string;
+  /** Present only when TShark supplied it. Primer does not compute a JA3. */
+  tlsJa3?: string;
+  /** Present only when TShark supplied an RDP keyboard-layout id. */
+  rdpKeyboard?: string;
   /** pcap link type, so the detail view decodes the same way as the list. */
   linkType?: number;
 }
@@ -138,6 +151,12 @@ export interface RawPacket {
   origLen: number;
   data: Uint8Array;
   linkType: number;
+  /**
+   * Offset of `data` inside the file that was parsed.
+   * After gzip is removed, this refers to the inflated bytes, which is the
+   * evidence file the case stores.
+   */
+  fileOffset?: number;
 }
 
 export interface CaptureFile {
@@ -150,9 +169,18 @@ export interface CaptureFile {
 export interface PacketRec {
   row: Row;
   raw: Uint8Array;
+  fileOffset?: number;
+  capLen?: number;
 }
 
 export type Severity = "critical" | "high" | "medium" | "low" | "info";
+
+/** What the bytes themselves show, or a reading those bytes are only consistent with. */
+export type ClaimStatus = "observed" | "possible";
+export type Confidence = "low" | "medium" | "high";
+export type ValidationStatus = "pending" | "approved" | "rejected" | "escalated";
+/** 1 anomaly, 2 suspicious activity, 3 enough to open an investigation. Never "confirmed exploit". */
+export type TriageLevel = 1 | 2 | 3;
 
 export interface Evidence {
   n: number;
@@ -175,6 +203,19 @@ export interface Finding {
   legacy?: LegacyTechnique[];
   evidence: Evidence[];
   evidenceCount: number;
+  /** primer, suricata, tshark, or correlation. Omitted on older in-memory findings. */
+  engine?: string;
+  ruleId?: string;
+  confidence?: Confidence;
+  triageLevel?: TriageLevel;
+  claimStatus?: ClaimStatus;
+  alternativeExplanation?: string;
+  validation?: ValidationStatus;
+  validatedBy?: string;
+  validatedAt?: string | null;
+  /** Whether the technique ids are observed facts or a possible reading. */
+  techniqueSupport?: ClaimStatus;
+  ts?: number;
 }
 
 export interface Conversation {

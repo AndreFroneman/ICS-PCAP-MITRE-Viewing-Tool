@@ -1,4 +1,5 @@
 import { shannon } from "./bytes.ts";
+import { annotateFindings } from "./forensic.ts";
 import { isInternal, isPublicUnicast } from "./ip.ts";
 import type { Finding, LegacyTechnique, Row, Severity } from "./model.ts";
 import { Bit } from "./model.ts";
@@ -52,7 +53,8 @@ export function detect(rows: Row[]): Finding[] {
   }
   const rank: Record<Severity, number> = { critical: 4, high: 3, medium: 2, low: 1, info: 0 };
   findings.sort((a, b) => rank[b.severity] - rank[a.severity]);
-  return findings;
+  // Labels (observed / possible, triage, alternative) sit on the same objects the tests already know.
+  return annotateFindings(findings, rows);
 }
 
 function cap(rows: Row[], detail: (r: Row) => string, limit = 24): { evidence: { n: number; detail: string }[]; count: number } {

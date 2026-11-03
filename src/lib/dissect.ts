@@ -314,6 +314,7 @@ function dissectIpv4(data: Uint8Array, off: number, row: Row, parent: TreeNode |
   row.src = src;
   row.dst = dst;
   row.ipProto = proto;
+  row.ttl = data[off + 8];
   const end = Math.min(data.length, off + Math.max(ihl, total || data.length));
   const node = child(
     parent,
@@ -322,6 +323,7 @@ function dissectIpv4(data: Uint8Array, off: number, row: Row, parent: TreeNode |
       leaf("Source", src, off + 12, 4, "The device that sent this IP packet.", `ip.src == ${src}`),
       leaf("Destination", dst, off + 16, 4, "The device this IP packet is trying to reach.", `ip.dst == ${dst}`),
       leaf("Protocol", ipProtoName(proto), off + 9, 1, "The next header: TCP, UDP, ICMP, or something else."),
+      leaf("TTL", String(data[off + 8]), off + 8, 1, "Time to live. Routers count it down. A starting value of 64, 128, or 255 is a stack habit, not a location."),
     ]),
   );
   const payload = off + ihl;
@@ -344,6 +346,7 @@ function dissectIpv6(data: Uint8Array, off: number, row: Row, parent: TreeNode |
   row.proto = "IPv6";
   row.src = src;
   row.dst = dst;
+  row.ttl = data[off + 7];
   let pos = off + 40;
   for (let hop = 0; hop < 6; hop++) {
     if (next !== 0 && next !== 43 && next !== 44 && next !== 60 && next !== 51) break;
@@ -422,6 +425,7 @@ function dissectTcp(data: Uint8Array, off: number, end: number, row: Row, parent
   row.tcpFlags = flags;
   row.tcpSeq = seq;
   row.tcpAck = ack;
+  if (dataOff > 20 && off + dataOff <= data.length) row.tcpOptions = describeTcpOptions(data, off + 20, off + dataOff);
   const payload = off + dataOff;
   const limit = Math.min(data.length, end);
   row.appOff = payload;
@@ -494,6 +498,33 @@ function tcpFlagExplain(flags: number): string {
   if ((flags & 0x12) === 0x12) return "SYN, ACK accepts the connection. The service is open.";
   if (flags & 0x04) return "Reset. The host refused the connection or aborted it.";
   return "TCP flags say whether this segment opens, continues, or closes a connection.";
+}
+
+/** A short label for TCP options. Unknown kinds stay as optN so we do not invent a meaning. */
+function describeTcpOptions(data: Uint8Array, start: number, end: number): string {
+  const parts: string[] = [];
+  let i = start;
+  while (i < end && parts.length < 12) {
+    const kind = data[i];
+    if (kind === 0) {
+      parts.push("eol");
+      break;
+    }
+    if (kind === 1) {
+      parts.push("nop");
+      i += 1;
+      continue;
+    }
+    const len = data[i + 1] ?? 0;
+    if (len < 2 || i + len > end) break;
+    if (kind === 2 && len >= 4) parts.push(`mss:${readBe16(data, i + 2)}`);
+    else if (kind === 3 && len >= 3) parts.push(`wscale:${data[i + 2]}`);
+    else if (kind === 4) parts.push("sack");
+    else if (kind === 8) parts.push("ts");
+    else parts.push(`opt${kind}`);
+    i += len;
+  }
+  return parts.join(",");
 }
 
 function portExplain(port: number): string {
@@ -1009,6 +1040,13 @@ function mqttRead(buf: Uint8Array, o: number): { value: string; next: number } {
 }
 
 const SMB2 = ["Negotiate", "Session Setup", "Logoff", "Tree Connect", "Tree Disconnect", "Create", "Close", "Flush", "Read", "Write", "Lock", "Ioctl", "Cancel", "Echo", "Query Directory", "Change Notify", "Query Info", "Set Info"];
+const SMB_DIALECT: Record<number, string> = {
+  0x0202: "SMB 2.0.2",
+  0x0210: "SMB 2.1",
+  0x0300: "SMB 3.0",
+  0x0302: "SMB 3.0.2",
+  0x0311: "SMB 3.1.1",
+};
 
 function trySmb(payload: Uint8Array, off: number, row: Row, parent: TreeNode | null, want: boolean): boolean {
   let base = 0;
@@ -1023,6 +1061,13 @@ function trySmb(payload: Uint8Array, off: number, row: Row, parent: TreeNode | n
   }
   const cmd = readLe16(payload, base + 12);
   row.layers |= Bit.smb;
+  const flags = readLe32(payload, base + 16);
+  // Server-to-client flag. Only a negotiate response carries a single chosen dialect.
+  if (cmd === 0 && (flags & 1) !== 0 && payload.length >= base + 70) {
+    const dialect = readLe16(payload, base + 68);
+    const name = SMB_DIALECT[dialect];
+    if (name) row.smbDialect = name;
+  }
   row.proto = "SMB2";
   row.smbCmd = SMB2[cmd] ?? `Command ${cmd}`;
   const smb = payload.subarray(base);
@@ -1147,6 +1192,7 @@ function tryHttp(payload: Uint8Array, off: number, row: Row, parent: TreeNode | 
     if (c > 0) headers[line.slice(0, c).trim().toLowerCase()] = line.slice(c + 1).trim();
   }
   if (headers.host) row.httpHost = headers.host;
+  if (headers["user-agent"]) row.httpUa = headers["user-agent"];
   if (headers.authorization) {
     const m = headers.authorization.match(/^Basic\s+([A-Za-z0-9+/=]+)/i);
     row.httpAuth = m ? decodeB64(m[1]) : headers.authorization;
@@ -1381,6 +1427,7 @@ function tryDhcp(payload: Uint8Array, off: number, row: Row, parent: TreeNode | 
     const val = payload.subarray(p + 2, p + 2 + len);
     if (code === 53 && val.length) kind = val[0];
     if (code === 12) host = text.decode(val);
+    if (code === 60) row.dhcpVendor = text.decode(val);
     if (code === 50 && val.length === 4) reqIp = formatIpv4(val, 0);
     p += 2 + len;
   }

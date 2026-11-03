@@ -25,7 +25,7 @@ export async function inspectCapture(
     const pkt = file.packets[i];
     const { row } = dissect(pkt.data, { n: pkt.n, ts: pkt.ts, linkType: pkt.linkType }, false);
     row.linkType = pkt.linkType;
-    packets[i] = { row, raw: pkt.data };
+    packets[i] = { row, raw: pkt.data, fileOffset: pkt.fileOffset ?? 0, capLen: pkt.data.length };
     if (i % 4000 === 0) {
       progress?.(i, total, "Decoding packets");
       await yieldNow();

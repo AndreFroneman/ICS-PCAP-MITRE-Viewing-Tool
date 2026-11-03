@@ -130,6 +130,7 @@ function parsePcap(bytes: Uint8Array, little: boolean, kind: PcapKind): CaptureF
       origLen: orig,
       data: bytes.subarray(dataAt, dataAt + incl),
       linkType,
+      fileOffset: dataAt,
     });
     o = dataAt + incl;
   }
@@ -251,12 +252,14 @@ function pushEnhanced(bytes: Uint8Array, o: number, total: number, little: boole
   const iface = ifaceAt(interfaces, ifId);
   const dataEnd = Math.min(o + 28 + incl, o + total - 4);
   const ticks = high * 0x100000000 + low;
+  const data = trimFcs(bytes.subarray(o + 28, Math.max(o + 28, dataEnd)), iface.fcs);
   packets.push({
     n: n + 1,
     ts: ticks * iface.tsResol + iface.tsOffset,
     origLen: orig,
-    data: trimFcs(bytes.subarray(o + 28, Math.max(o + 28, dataEnd)), iface.fcs),
+    data,
     linkType: iface.linkType,
+    fileOffset: o + 28,
   });
   return n + 1;
 }
@@ -272,12 +275,14 @@ function pushLegacyPacket(bytes: Uint8Array, o: number, total: number, little: b
   const iface = ifaceAt(interfaces, ifId);
   const dataEnd = Math.min(o + 28 + incl, o + total - 4);
   const ticks = high * 0x100000000 + low;
+  const data = trimFcs(bytes.subarray(o + 28, Math.max(o + 28, dataEnd)), iface.fcs);
   packets.push({
     n: n + 1,
     ts: ticks * iface.tsResol + iface.tsOffset,
     origLen: orig,
-    data: trimFcs(bytes.subarray(o + 28, Math.max(o + 28, dataEnd)), iface.fcs),
+    data,
     linkType: iface.linkType,
+    fileOffset: o + 28,
   });
   return n + 1;
 }
@@ -288,7 +293,8 @@ function pushSimple(bytes: Uint8Array, o: number, total: number, little: boolean
   const iface = ifaceAt(interfaces, 0);
   const cap = Math.min(orig, iface.snapLen || orig);
   const data = bytes.subarray(o + 12, Math.min(o + 12 + cap, o + total - 4));
-  packets.push({ n: n + 1, ts: 0, origLen: orig, data: trimFcs(data, iface.fcs), linkType: iface.linkType });
+  const trimmed = trimFcs(data, iface.fcs);
+  packets.push({ n: n + 1, ts: 0, origLen: orig, data: trimmed, linkType: iface.linkType, fileOffset: o + 12 });
   return n + 1;
 }
 
