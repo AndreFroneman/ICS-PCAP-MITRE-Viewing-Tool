@@ -4,6 +4,10 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: write
 
 jobs:
   installer:
@@ -16,18 +20,51 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Install frontend dependencies
         run: npm install --legacy-peer-deps
-      - name: Build NSIS and MSI installers
+      - name: Stage TShark without Npcap
+        shell: pwsh
+        run: ./scripts/stage-tshark.ps1
+      - name: Refuse a Suricata binary that was not reviewed
+        shell: pwsh
+        run: |
+          $found = Get-ChildItem -Recurse src-tauri/resources/engines -Include suricata.exe,wpcap.dll,npcap*.exe -ErrorAction SilentlyContinue
+          if ($found) { throw "Refusing to bundle Suricata or Npcap. See docs/ENGINES.md." }
+          if (-not (Test-Path src-tauri/resources/suricata/suricata.yaml)) { throw "Offline Suricata config is missing." }
+          if (-not (Test-Path src-tauri/resources/rules/README.md)) { throw "Rules notice is missing." }
+      - name: Build the per-user NSIS installer
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: .
-          args: --bundles nsis,msi
-      - name: Upload installers
+          args: --bundles nsis
+      - name: Collect the installer
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem src-tauri/target/release/bundle/nsis/*.exe | Select-Object -First 1
+          if (-not $exe) { throw "NSIS installer was not produced" }
+          Copy-Item $exe.FullName "Primer_2.0.0_x64-setup.exe"
+      - name: Upload the installer
         uses: actions/upload-artifact@v4
         with:
-          name: primer-windows
+          name: Primer_2.0.0_x64-setup
           path: |
-            src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/release/bundle/msi/*.msi
+            Primer_2.0.0_x64-setup.exe
+            src-tauri/target/wireshark-4.6.9.tar.xz
           if-no-files-found: error
+      - name: Attach the installer and the matching Wireshark source to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Primer_2.0.0_x64-setup.exe
+            src-tauri/target/wireshark-4.6.9.tar.xz
+          body: |
+            Primer 2.0.0 for 64-bit Windows. One per-user NSIS installer. The WebView2 offline installer is embedded, so an air-gapped Windows 10 machine does not download it.
+
+            The installer is not code-signed. SmartScreen will say it is unrecognised. Choose More info, then Run anyway.
+
+            TShark 4.6.9 is included as a separate program. Npcap is not included. Suricata is not included; see THIRD_PARTY_NOTICES.md in the source tree. The file `wireshark-4.6.9.tar.xz` is the source that matches the bundled TShark.
+
+            Offline analysis does not need an administrator. Live capture is optional and needs Npcap, which you install yourself from https://npcap.com/#download.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
