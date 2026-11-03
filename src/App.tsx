@@ -1,10 +1,16 @@
 import * as Tabs from "@radix-ui/react-tabs";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AskPanel } from "./components/AskPanel.tsx";
+import { AssetMap } from "./components/AssetMap.tsx";
+import { AttributionPanel } from "./components/AttributionPanel.tsx";
+import { CaseScreen, type CaseFields } from "./components/CaseScreen.tsx";
 import { FilterBar, PacketDesk } from "./components/desk.tsx";
 import { CursorFollower, HorizonField, Mark } from "./components/horizon.tsx";
 import { FindingsView, MatrixView, SummaryBand, Tables, TechniqueDialog } from "./components/insights.tsx";
+import { ConversationView, InvestigationOverview, LiveCapture, ReportView, TimelineView } from "./components/investigation.tsx";
+import { OtView } from "./components/OtView.tsx";
 import { SettingsDialog } from "./components/SettingsDialog.tsx";
+import { TriageBar } from "./components/TriageBar.tsx";
 import { Button, Menu, MenuItem, Modal, TipProvider } from "./components/ui.tsx";
 import { attackReportHtml, attackReportPdf } from "./lib/attackReport.ts";
 import { ATTACK_SOURCE } from "./lib/attack.ts";
@@ -12,10 +18,12 @@ import { SAMPLES } from "./lib/catalog.ts";
 import { conversationsCsv, dnsCsv, endpointsCsv, findingsCsv, httpCsv, packetsCsv, tlsCsv } from "./lib/csv.ts";
 import { downloadBytes, downloadText } from "./lib/download.ts";
 import { compileFilter } from "./lib/filter.ts";
+import { applyDecision, buildDossier, visibleFindings, type ActivityEntry, type FindingFilter } from "./lib/forensic.ts";
 import { GLOSSARY } from "./lib/glossary.ts";
 import { rememberFolder, rememberedFolder } from "./lib/keys.ts";
-import type { Analysis, Row, Severity, TreeNode } from "./lib/model.ts";
+import type { Analysis, Row, Severity, TreeNode, ValidationStatus } from "./lib/model.ts";
 import { navigatorLayer } from "./lib/navigator.ts";
+import { reportCaseCsv, reportCaseHtml, reportCaseJson, reportCasePdf } from "./lib/reportCase.ts";
 import { reportHtml, reportJson, reportPdf } from "./lib/report.ts";
 import type { FollowedStream } from "./lib/stream.ts";
 
@@ -29,11 +37,26 @@ interface Ready {
 }
 
 const NAV = [
+  ["overview", "Overview"],
   ["packets", "Packets"],
   ["findings", "Findings"],
   ["attack", "ATT&CK"],
-  ["overview", "Overview"],
   ["ask", "Ask"],
+] as const;
+
+const VIEWS = [
+  ["overview", "Overview"],
+  ["assets", "Assets"],
+  ["packets", "Packets"],
+  ["talk", "Talk"],
+  ["ot", "OT"],
+  ["findings", "Findings"],
+  ["attack", "ATT&CK"],
+  ["timeline", "Timeline"],
+  ["attribution", "Attribution"],
+  ["ask", "Ask"],
+  ["case", "Case"],
+  ["report", "Report"],
 ] as const;
 
 export default function App() {
@@ -61,6 +84,19 @@ export default function App() {
   const [drag, setDrag] = useState(false);
   const [folderFiles, setFolderFiles] = useState<File[]>([]);
   const [clock, setClock] = useState("--:--:--");
+  const [engineLine, setEngineLine] = useState("");
+  const [findingMode, setFindingMode] = useState<FindingFilter>("ot");
+  const [activityLog, setActivityLog] = useState<ActivityEntry[]>([]);
+  const [liveOpen, setLiveOpen] = useState(false);
+  const [caseFields, setCaseFields] = useState<CaseFields>({
+    name: "",
+    investigator: "",
+    organisation: "",
+    sha256: "",
+    storedPath: "",
+    note: "",
+  });
+  const caseRef = useRef<{ caseId: string; evidenceId: string; storedPath: string; sha256: string } | null>(null);
 
   useEffect(() => {
     folderRef.current?.setAttribute("webkitdirectory", "");
@@ -82,6 +118,9 @@ export default function App() {
         type: string; done?: number; total?: number; phase?: string; message?: string; name?: string;
         format?: string; linkType?: number; warnings?: string[]; rows?: Row[]; analysis?: Analysis;
         tree?: TreeNode[]; bytes?: Uint8Array; stream?: FollowedStream | null;
+        n?: number; offset?: number; len?: number;
+        spans?: { n: number; ts: number; fileOffset: number; capLen: number; origLen: number; linkType: number }[];
+        engine?: string; state?: string; detail?: string;
       };
       if (msg.type === "progress") setProgress({ done: msg.done ?? 0, total: msg.total ?? 0, phase: msg.phase ?? "" });
       if (msg.type === "error") {
@@ -114,6 +153,34 @@ export default function App() {
         setStream(msg.stream ?? null);
         setStreamOpen(true);
       }
+      if (msg.type === "need-bytes" && msg.n && caseRef.current) {
+        const wanted = msg.n;
+        const offset = msg.offset ?? 0;
+        const len = msg.len ?? 0;
+        const stored = caseRef.current.storedPath;
+        void import("./lib/case.ts").then(async ({ readSpan }) => {
+          const buffer = await readSpan(stored, offset, len);
+          worker.postMessage({ type: "bytes", n: wanted, buffer }, [buffer]);
+        });
+      }
+      if (msg.type === "ready" && msg.spans && caseRef.current) {
+        const current = caseRef.current;
+        const spans = msg.spans;
+        const rows = msg.rows ?? [];
+        void import("./lib/case.ts").then(async (api) => {
+          await api.savePacketIndex(current.caseId, current.evidenceId, spans.map((span) => ({
+            n: span.n, ts: span.ts, fileOffset: span.fileOffset, capLen: span.capLen, origLen: span.origLen, linkType: span.linkType,
+          })));
+          await api.savePackets(current.caseId, current.evidenceId, "primer", rows.map((row) => ({
+            n: row.n, ts: row.ts, len: row.len, macSrc: row.macSrc, macDst: row.macDst, src: row.src, dst: row.dst,
+            sp: row.sp, dp: row.dp, ipProto: row.ipProto, proto: row.proto, info: row.info, layers: row.layers, appJson: "{}",
+          })));
+          setEngineLine("Case saved. Background decoders run without blocking the list.");
+          await api.runEngines(current.caseId, current.evidenceId, current.storedPath);
+        }).catch((error: unknown) => {
+          setEngineLine(error instanceof Error ? error.message : "The case file could not be saved.");
+        });
+      }
     };
     return () => worker.terminate();
   }, []);
@@ -122,23 +189,12 @@ export default function App() {
     if (phase === "ready" && selected != null) workerRef.current?.postMessage({ type: "dissect", n: selected });
   }, [phase, selected, ready?.name]);
 
-  const parseBuffer = useCallback((buffer: ArrayBuffer, name: string) => {
+  const parseBuffer = useCallback((buffer: ArrayBuffer, name: string, releaseBytes = false) => {
     setPhase("loading");
     setError("");
     setProgress({ done: 0, total: 1, phase: "Reading the file" });
-    workerRef.current?.postMessage({ type: "parse", buffer, name }, [buffer]);
+    workerRef.current?.postMessage({ type: "parse", buffer, name, releaseBytes }, [buffer]);
   }, []);
-
-  useEffect(() => {
-    if (!("__TAURI_INTERNALS__" in window)) return;
-    void import("@tauri-apps/api/core").then(async ({ invoke }) => {
-      const path = await invoke<string | null>("startup_capture");
-      if (!path) return;
-      const raw = await invoke<number[]>("read_capture", { path });
-      const copy = Uint8Array.from(raw);
-      parseBuffer(copy.buffer, path.split(/[/\\]/).pop() ?? "capture.pcap");
-    });
-  }, [parseBuffer]);
 
   const onFiles = useCallback((files: FileList | File[]) => {
     const file = [...files].find((item) => /\.(pcap|pcapng|cap|dmp|gz)$/i.test(item.name)) ?? files[0];
@@ -174,6 +230,28 @@ export default function App() {
     if (!compiled.filter) return ready.rows;
     return ready.rows.filter((row) => compiled.filter?.test(row, ready.analysis.t0));
   }, [ready, compiled]);
+
+  const dossier = useMemo(() => (ready ? buildDossier(ready.rows, ready.analysis) : null), [ready]);
+  const stampedFindings = useMemo(() => {
+    if (!dossier) return [];
+    return dossier.findings.map((finding) => {
+      const decision = activityLog.find((entry) => entry.detail.startsWith(finding.id) && ["approved", "rejected", "escalated"].includes(entry.action));
+      if (!decision) return finding;
+      return { ...finding, validation: decision.action as ValidationStatus, validatedBy: decision.actor, validatedAt: decision.at };
+    });
+  }, [dossier, activityLog]);
+  const shownFindings = useMemo(() => visibleFindings(stampedFindings, findingMode), [stampedFindings, findingMode]);
+
+  const onDecide = (id: string, validation: ValidationStatus) => {
+    const at = new Date().toISOString();
+    const actor = caseFields.investigator || "Investigator";
+    const next = applyDecision(stampedFindings, activityLog, { findingId: id, validation, actor, at, note: "" });
+    setActivityLog(next.log);
+    const current = caseRef.current;
+    if (current) {
+      void import("./lib/case.ts").then((api) => api.setValidation(current.caseId, id, validation, actor, ""));
+    }
+  };
 
   const marks = useMemo(() => {
     const map = new Map<number, Severity>();
@@ -212,7 +290,48 @@ export default function App() {
     if (kind === "csv-http") downloadText(`${stem}.http.csv`, httpCsv(ready.analysis), "text/csv");
     if (kind === "csv-tls") downloadText(`${stem}.tls.csv`, tlsCsv(ready.analysis), "text/csv");
     if (kind === "csv-findings") downloadText(`${stem}.findings.csv`, findingsCsv(ready.analysis.findings), "text/csv");
+    if (dossier && (kind === "case-html" || kind === "case-pdf" || kind === "case-json" || kind === "case-csv")) {
+      const reportMeta = {
+        caseName: caseFields.name || ready.name,
+        fileName: ready.name,
+        sha256: caseFields.sha256,
+        packetCount: ready.rows.length,
+        generatedAt: new Date().toISOString(),
+        investigator: caseFields.investigator,
+        captureClock: "UTC",
+      };
+      if (kind === "case-html") downloadText(`${stem}.investigation.html`, reportCaseHtml(reportMeta, dossier), "text/html");
+      if (kind === "case-pdf") downloadBytes(`${stem}.investigation.pdf`, reportCasePdf(reportMeta, dossier), "application/pdf");
+      if (kind === "case-json") downloadText(`${stem}.investigation.json`, reportCaseJson(reportMeta, dossier), "application/json");
+      if (kind === "case-csv") downloadText(`${stem}.investigation.csv`, reportCaseCsv(dossier), "text/csv");
+    }
   };
+
+  const openDesktopPath = useCallback(async (path: string) => {
+    const api = await import("./lib/case.ts");
+    const imported = await api.importEvidence(path, path.split(/[/\\]/).pop() ?? "capture", caseFields.investigator || "Investigator");
+    caseRef.current = { caseId: imported.caseId, evidenceId: imported.evidenceId, storedPath: imported.storedPath, sha256: imported.sha256 };
+    setCaseFields((fields) => ({
+      ...fields,
+      name: fields.name || imported.originalName,
+      sha256: imported.sha256,
+      storedPath: imported.storedPath,
+    }));
+    setEngineLine("Evidence copied and hashed. Reading the packet list.");
+    const buffer = await api.readCapture(imported.storedPath);
+    parseBuffer(buffer, imported.originalName, imported.sizeBytes > 32 * 1024 * 1024);
+  }, [caseFields.investigator, parseBuffer]);
+
+  const openedStartup = useRef(false);
+  useEffect(() => {
+    if (openedStartup.current || !("__TAURI_INTERNALS__" in window)) return;
+    openedStartup.current = true;
+    void import("@tauri-apps/api/core").then(async ({ invoke }) => {
+      const path = await invoke<string | null>("startup_capture");
+      if (!path) return;
+      await openDesktopPath(path);
+    });
+  }, [openDesktopPath]);
 
   const openDesktopFolder = async () => {
     if (!("__TAURI_INTERNALS__" in window)) {
@@ -232,9 +351,7 @@ export default function App() {
     }
     const path = captures[0];
     if (!path) return;
-    const raw = await invoke<number[]>("read_capture", { path });
-    const copy = Uint8Array.from(raw);
-    parseBuffer(copy.buffer, path.split(/[/\\]/).pop() ?? "capture.pcap");
+    await openDesktopPath(path);
   };
 
   const gloss = GLOSSARY.filter((entry) => `${entry.term} ${entry.body}`.toLowerCase().includes(glossQuery.toLowerCase()));
@@ -292,7 +409,7 @@ export default function App() {
           </div>
         </header>
 
-        {phase === "empty" && <Empty onOpen={() => fileRef.current?.click()} onSample={loadSample} drag={drag} onTour={() => setTour(0)} onGlossary={() => setGlossary(true)} />}
+        {phase === "empty" && <Empty onOpen={() => fileRef.current?.click()} onSample={loadSample} drag={drag} onTour={() => setTour(0)} onGlossary={() => setGlossary(true)} onLive={() => setLiveOpen(true)} />}
         {phase === "loading" && (
           <div className="grid flex-1 place-items-center p-8">
             <div className="w-full max-w-md">
@@ -315,12 +432,20 @@ export default function App() {
         {phase === "ready" && ready && (
           <Tabs.Root value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
             <SummaryBand analysis={ready.analysis} onFinding={() => setTab("findings")} />
+            {dossier && <TriageBar triage={dossier.triage} />}
+            <div className="flex gap-3 overflow-x-auto border-b border-line px-4 py-2 font-mono text-[11px] tracking-[0.14em]">
+              {VIEWS.map(([id, label]) => (
+                <button key={id} type="button" className={tab === id ? "text-accent" : "text-muted"} onClick={() => setTab(id)}>{label}</button>
+              ))}
+            </div>
             <div className="hud-line border-b border-line px-4 py-2 text-[11px]">
               <span>FILE <b>{ready.name}</b></span>
               <span>PKTS <b>{ready.rows.length.toLocaleString()}</b></span>
               <span>ATT&CK <b>{ATTACK_SOURCE.attackVersion}</b></span>
               <span>SAST <b>{clock}</b></span>
               <span>MODE <b>LOCAL</b></span>
+              {caseFields.sha256 && <span>SHA <b>{caseFields.sha256.slice(0, 12)}</b></span>}
+              {engineLine && <span>{engineLine}</span>}
             </div>
             <Tabs.Content value="packets" className="flex min-h-[70vh] flex-1 flex-col outline-none lg:min-h-0">
               <FilterBar value={filterText} error={compiled.error} shown={compiled.filter ? shown.length : ready.rows.length} total={ready.rows.length} onChange={setFilterText} />
@@ -341,13 +466,58 @@ export default function App() {
               />
             </Tabs.Content>
             <Tabs.Content value="findings" className="min-h-0 flex-1 overflow-auto outline-none">
-              <FindingsView findings={ready.analysis.findings} onPacket={jump} onTechnique={setTechId} />
+              <div className="flex gap-2 px-4 pt-3">
+                <button type="button" className={`hz-btn hz-sm ${findingMode === "ot" ? "hz-solid" : ""}`} onClick={() => setFindingMode("ot")}>Industrial</button>
+                <button type="button" className={`hz-btn hz-sm ${findingMode === "signatures" ? "hz-solid" : ""}`} onClick={() => setFindingMode("signatures")}>Signature hits</button>
+                <button type="button" className={`hz-btn hz-sm ${findingMode === "all" ? "hz-solid" : ""}`} onClick={() => setFindingMode("all")}>All</button>
+              </div>
+              <FindingsView findings={shownFindings} onPacket={jump} onTechnique={setTechId} onDecide={onDecide} />
             </Tabs.Content>
             <Tabs.Content value="attack" className="flex min-h-0 flex-1 flex-col outline-none" data-tour="attack">
               <MatrixView findings={ready.analysis.findings} onTechnique={setTechId} />
             </Tabs.Content>
             <Tabs.Content value="overview" className="flex min-h-0 flex-1 flex-col outline-none">
+              {dossier && <InvestigationOverview dossier={dossier} headline={ready.analysis.headline} onPacket={jump} />}
               <Tables analysis={ready.analysis} onFilter={(expr) => { setFilterText(expr); setTab("packets"); }} />
+            </Tabs.Content>
+            <Tabs.Content value="assets" className="min-h-0 flex-1 overflow-auto outline-none">
+              {dossier && <AssetMap assets={dossier.assets} onPacket={jump} />}
+            </Tabs.Content>
+            <Tabs.Content value="talk" className="min-h-0 flex-1 overflow-auto outline-none">
+              {dossier && <ConversationView dossier={dossier} onFilter={(expr) => { setFilterText(expr); setTab("packets"); }} />}
+            </Tabs.Content>
+            <Tabs.Content value="ot" className="min-h-0 flex-1 overflow-auto outline-none">
+              {dossier && <OtView dossier={dossier} onPacket={jump} />}
+            </Tabs.Content>
+            <Tabs.Content value="timeline" className="min-h-0 flex-1 overflow-auto outline-none">
+              <TimelineView findings={stampedFindings} onPacket={jump} />
+            </Tabs.Content>
+            <Tabs.Content value="attribution" className="min-h-0 flex-1 overflow-auto outline-none">
+              {dossier && <AttributionPanel fingerprints={dossier.fingerprints} onPacket={jump} />}
+            </Tabs.Content>
+            <Tabs.Content value="case" className="min-h-0 flex-1 overflow-auto outline-none">
+              {dossier && (
+                <CaseScreen
+                  fields={caseFields}
+                  onChange={setCaseFields}
+                  dossier={dossier}
+                  findings={stampedFindings}
+                  activity={activityLog}
+                  onAddNote={() => {
+                    if (!caseFields.note.trim()) return;
+                    const at = new Date().toISOString();
+                    setActivityLog((log) => [...log, { at, actor: caseFields.investigator || "Investigator", action: "note", detail: caseFields.note.trim() }]);
+                    const current = caseRef.current;
+                    if (current) {
+                      void import("./lib/case.ts").then((api) => api.addNote(current.caseId, "", caseFields.note.trim(), caseFields.investigator || "Investigator"));
+                    }
+                    setCaseFields((fields) => ({ ...fields, note: "" }));
+                  }}
+                />
+              )}
+            </Tabs.Content>
+            <Tabs.Content value="report" className="min-h-0 flex-1 overflow-auto outline-none">
+              <ReportView onExport={exportReport} />
             </Tabs.Content>
             <Tabs.Content value="ask" className="flex min-h-0 flex-1 flex-col outline-none">
               <AskPanel ctx={{ fileName: ready.name, rows: ready.rows, analysis: ready.analysis }} onPacket={jump} />
@@ -369,7 +539,10 @@ export default function App() {
             ))}
           </div>
         </Modal>
-        <TechniqueDialog id={techId} findings={ready?.analysis.findings ?? []} onClose={() => setTechId(null)} />
+        <Modal open={liveOpen} onOpenChange={setLiveOpen} title="Live capture (optional)" wide>
+          <LiveCapture onOpenPath={(path) => { setLiveOpen(false); void openDesktopPath(path); }} />
+        </Modal>
+        <TechniqueDialog id={techId} findings={stampedFindings} onClose={() => setTechId(null)} />
         <SettingsDialog open={settings} onClose={() => setSettings(false)} onOpenFolder={() => void openDesktopFolder()} />
         <Modal open={glossary} onOpenChange={setGlossary} title="Glossary" wide>
           <input value={glossQuery} onChange={(e) => setGlossQuery(e.target.value)} placeholder="Search" className="hz-field mb-3 w-full" aria-label="Search glossary" />
@@ -397,7 +570,7 @@ const TOUR = [
   { id: "export", title: "Export", body: "HTML, PDF, Navigator layers, and CSV. Built here." },
 ];
 
-function Empty({ onOpen, onSample, drag, onTour, onGlossary }: { onOpen: () => void; onSample: (file: string) => void; drag: boolean; onTour: () => void; onGlossary: () => void }) {
+function Empty({ onOpen, onSample, drag, onTour, onGlossary, onLive }: { onOpen: () => void; onSample: (file: string) => void; drag: boolean; onTour: () => void; onGlossary: () => void; onLive: () => void }) {
   return (
     <div className="flex-1 overflow-auto">
       <section className="px-[4vw] pb-10 pt-8">
@@ -407,6 +580,7 @@ function Empty({ onOpen, onSample, drag, onTour, onGlossary }: { onOpen: () => v
         <div className="mt-8 flex flex-wrap gap-3">
           <Button type="button" variant="solid" onClick={onOpen}>Open capture</Button>
           <Button type="button" onClick={() => onSample("plant-shift.pcap")}>Plant shift</Button>
+          <Button type="button" onClick={onLive}>Live capture</Button>
           <Button type="button" onClick={onTour}>Tour</Button>
           <Button type="button" onClick={onGlossary}>Glossary</Button>
         </div>

@@ -55,6 +55,10 @@ export function SettingsDialog({ open, onClose, onOpenFolder }: { open: boolean;
         ))}
       </div>
       <div className="mt-5 border-t border-line pt-4">
+        <p className="eyebrow">About Primer 2.0</p>
+        <p className="mt-2 text-sm text-muted">GPL-2.0-or-later. Built by Andre Froneman. TShark, when the installer includes it, is Wireshark 4.6.9, a separate program under the GPL. Its matching source is the wireshark-4.6.9.tar.xz published with the release. Suricata is not bundled, because the usual Windows build needs Npcap. Primer does not bundle Npcap. The installer is not code-signed: if SmartScreen appears, choose More info, then Run anyway.</p>
+      </div>
+      <div className="mt-5 border-t border-line pt-4">
         <p className="eyebrow">Capture folder</p>
         <p className="mt-2 text-sm text-muted">On Windows the suggested default is {SUGGESTED_CAPTURE_FOLDER}. Primer remembers the last folder you choose. The web app can only open a folder you pick; the desktop app can list it.</p>
         <input className="hz-field mt-2 w-full font-mono text-sm" value={folder} onChange={(event) => setFolder(event.target.value)} aria-label="Default capture folder" />

@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { ATTACK_SOURCE, getTechnique, subsOf, tacticsFor, techniqueLabel, techniquesIn } from "../lib/attack.ts";
 import { formatSpan } from "../lib/analyze.ts";
-import type { Analysis, Finding, Severity } from "../lib/model.ts";
+import type { Analysis, Finding, Severity, ValidationStatus } from "../lib/model.ts";
 import { SEVERITY_RANK, worse } from "../lib/model.ts";
+import { DecisionButtons } from "./TriageBar.tsx";
 import { TechniqueBody } from "./technique.tsx";
 import { Modal } from "./ui.tsx";
 
@@ -40,14 +41,29 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function FindingsView({ findings, onPacket, onTechnique }: { findings: Finding[]; onPacket: (n: number) => void; onTechnique: (id: string) => void }) {
+export function FindingsView({
+  findings,
+  onPacket,
+  onTechnique,
+  onDecide,
+}: {
+  findings: Finding[];
+  onPacket: (n: number) => void;
+  onTechnique: (id: string) => void;
+  onDecide?: (id: string, validation: ValidationStatus) => void;
+}) {
   if (!findings.length) return <p className="p-6 text-sm text-muted">No findings for this capture.</p>;
   return (
     <div className="space-y-3 overflow-auto p-4" data-tour="findings">
+      <p className="text-sm text-muted">Observed means the bytes show the fact. Possible means the bytes are only consistent with that reading. Neither word means a confirmed exploit. Technique ids are a possible reading, not an attack chain. Confidence is about the bytes matching the check.</p>
       {findings.map((f) => (
         <article key={f.id} className={`sev-${f.severity} card border-l-4 p-4`} style={{ borderLeftColor: "var(--mark)" }}>
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full px-2 py-0.5 text-xs uppercase tracking-wide" style={{ color: "var(--mark)", background: "color-mix(in srgb, var(--mark) 14%, transparent)" }}>{f.severity}</span>
+            <span className="rounded-full border border-line px-2 py-0.5 font-mono text-[11px] uppercase">{f.claimStatus ?? "possible"}</span>
+            <span className="rounded-full border border-line px-2 py-0.5 font-mono text-[11px]">L{f.triageLevel ?? 1}</span>
+            <span className="rounded-full border border-line px-2 py-0.5 font-mono text-[11px]">{f.engine ?? "primer"}{f.ruleId ? ` ${f.ruleId}` : ""}</span>
+            {f.validation && f.validation !== "pending" && <span className="font-mono text-[11px] text-accent">{f.validation}</span>}
             <h3 className="text-lg font-medium">{f.title}</h3>
           </div>
           <p className="mt-2 text-sm">{f.summary}</p>
@@ -55,6 +71,7 @@ export function FindingsView({ findings, onPacket, onTechnique }: { findings: Fi
             <div className="rounded-xl bg-raise p-3 text-sm"><p className="font-medium">What this means</p><p className="mt-1 text-muted">{f.meaning}</p></div>
             <div className="rounded-xl bg-raise p-3 text-sm"><p className="font-medium">What to do</p><p className="mt-1 text-muted">{f.action}</p></div>
           </div>
+          {f.alternativeExplanation && <p className="mt-3 text-sm text-muted"><span className="text-ink">Alternative. </span>{f.alternativeExplanation}</p>}
           <div className="mt-3 flex flex-wrap gap-2">
             {f.techniques.map((id) => (
               <button key={id} type="button" className="rounded-full border border-line px-2 py-1 font-mono text-xs hover:border-accent" onClick={() => onTechnique(id)}>
@@ -81,6 +98,7 @@ export function FindingsView({ findings, onPacket, onTechnique }: { findings: Fi
               ))}
             </ul>
           </div>
+          {onDecide && <DecisionButtons onDecide={(validation) => onDecide(f.id, validation)} />}
         </article>
       ))}
     </div>
