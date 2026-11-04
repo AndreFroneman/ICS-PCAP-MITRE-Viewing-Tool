@@ -1,0 +1,44 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+src-tauri/target
+src-tauri/gen
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Installers belong in GitHub Releases, not in git
+*.exe
+*.msi
+*.nsis.7z
+
+# Bundled engine payloads and WebView2 runtime (fetched by CI)
+src-tauri/binaries/
+src-tauri/resources/rules/*.rules
+src-tauri/webview2/
+
+# Installers and engine payloads are not source
+*.exe
+*.msi
+*.tar.xz
+src-tauri/resources/engines/*
+!src-tauri/resources/engines/README.md
+src-tauri/resources/rules/et-open/

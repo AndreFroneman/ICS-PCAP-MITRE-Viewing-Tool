@@ -1,0 +1,42 @@
+export interface GlossEntry {
+  term: string;
+  body: string;
+}
+
+export const GLOSSARY: GlossEntry[] = [
+  { term: "Packet", body: "One message captured from the network, headers and all. Primer numbers them from 1 in the order they appear in the file." },
+  { term: "Frame", body: "The packet as it looked on the wire, starting at Ethernet. Length is how many bytes were saved, which can be less than the original if the capture was truncated." },
+  { term: "pcap / pcapng", body: "The two file formats tools like Wireshark and tcpdump write. Primer reads both. pcapng can hold several interfaces; classic pcap is the older single-interface file." },
+  { term: "Dissection", body: "Taking a frame apart layer by layer: Ethernet, then IP, then TCP, then the application. The tree is that breakdown. The hex view is the same bytes, uninterpreted." },
+  { term: "Display filter", body: "A question you ask the packet list, such as tcp.port == 502. It hides rows; it does not delete them. Click a decoded field to start a filter from that value." },
+  { term: "Conversation", body: "All the packets between the same two addresses and ports. Follow stream shows the bytes those packets carried, in order, one side at a time." },
+  { term: "Endpoint", body: "One address that sent or received packets: an IP, or a MAC if you are looking at the local segment." },
+  { term: "Port", body: "A number that says which service on a host the packet is for. 502 is Modbus, 443 is HTTPS, 53 is DNS. The list in a finding is often more useful than the number alone." },
+  { term: "TCP and UDP", body: "TCP is a conversation that retries lost data. UDP is a single message with no handshake. Scans show up as TCP SYNs. DNS is usually UDP." },
+  { term: "SYN", body: "The first flag of a TCP connection, a knock. A SYN plus ACK is the answer that the door is open. Many SYNs and few answers is a port scan." },
+  { term: "DNS", body: "The lookup from a name to an address. Short names are normal. Long, random-looking names can be a tunnel carrying data inside the query itself." },
+  { term: "TLS and SNI", body: "TLS encrypts what comes after the handshake. SNI is the server name the client asks for before encryption starts, so you still learn the destination." },
+  { term: "Cleartext", body: "Readable without a key. FTP, HTTP Basic, SMTP AUTH, and MQTT on port 1883 often send passwords this way. Base64 is not encryption." },
+  { term: "Beacon", body: "A regular check-in to the same host, like a metronome. Implants do this. So do some legitimate agents. Primer ignores steady Modbus polling inside the plant and looks at public destinations." },
+  { term: "Lateral movement", body: "Going from the machine an attacker already has to the next one. SMB connections to ADMIN$ or C$ are a classic Windows step." },
+  { term: "Exfiltration", body: "Data leaving. Primer flags a large payload from an internal host to a public address, especially if that address was also used for regular check-ins." },
+  { term: "OT and ICS", body: "Operational technology and industrial control systems: the PLCs, RTUs, HMIs, and protocols that move physical equipment, as opposed to office IT." },
+  { term: "PLC", body: "Programmable logic controller. The computer that runs the process. Stopping it, or downloading a new program, changes the plant." },
+  { term: "HMI and SCADA", body: "The screens people use. An HMI is often local to a machine. SCADA supervises a wider process and polls controllers on a schedule." },
+  { term: "Modbus", body: "A simple industrial request/response protocol, usually TCP port 502. Function 3 reads holding registers. Functions 5, 6, 15, and 16 write. Writes change the process." },
+  { term: "Holding register", body: "A Modbus memory slot, often a number a controller uses as a setpoint or a measurement. The address in the packet is the slot number." },
+  { term: "DNP3", body: "A utility protocol. Read collects status. Select and operate are how a master asks an outstation to act. Common TCP port 20000." },
+  { term: "S7comm", body: "Siemens protocol for S7 PLCs, on top of ISO-on-TCP port 102. Jobs include read, write, program upload and download, and PLC stop." },
+  { term: "EtherNet/IP and CIP", body: "The Rockwell-family industrial protocol. CIP services inside it read or write tags. Port 44818." },
+  { term: "BACnet", body: "Building automation: HVAC, lighting, access. Who-Is discovers devices. WriteProperty changes one. UDP port 47808." },
+  { term: "IEC 60870-5-104", body: "A SCADA protocol used heavily by power and water. Type IDs under 40 are usually measurements. Types 45 to 64 are commands and setpoints. Port 2404." },
+  { term: "OPC UA", body: "A newer industrial protocol with a security handshake. Primer shows the Hello and the endpoint URL, not the encrypted calls inside. Port 4840." },
+  { term: "MQTT", body: "A publish/subscribe message bus, common for sensors. Topics are the subjects. On port 1883 the login can be cleartext." },
+  { term: "Setpoint", body: "The value a controller is trying to hold: a temperature, a level, a speed. Writing a register or a BACnet property often means changing a setpoint." },
+  { term: "ATT&CK", body: "MITRE's catalogue of how attacks tend to proceed, split into tactics (the goal of a step) and techniques (the way it is done). Enterprise covers IT. ATT&CK for ICS covers industrial control." },
+  { term: "Tactic", body: "The column in the matrix: discovery, lateral movement, impact, impair process control, and so on. A technique can sit in more than one column." },
+  { term: "Technique", body: "A named behaviour, such as T1046 Network Service Discovery or T0836 Modify Parameter. Primer stores the official text so you can read it offline. A link goes to attack.mitre.org when you have a network." },
+  { term: "T0855", body: "Unauthorized Command Message. MITRE revoked this ICS technique and replaced it with T1692.001 Command Message. Primer still shows the old id so older notes and reports line up." },
+  { term: "Evidence", body: "The packet numbers a finding is based on. Click one to open that frame. The finding is only as good as those packets, so read them." },
+  { term: "Heuristic", body: "A rule of thumb. Primer's findings are heuristics. A match means the traffic looks like something, not that a person has been identified or that the plant was damaged." },
+];

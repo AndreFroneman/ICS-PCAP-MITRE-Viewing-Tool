@@ -1,0 +1,36 @@
+%YAML 1.1
+---
+# Offline file mode only. No capture interface is configured.
+# Primer starts Suricata as its own program (`suricata -r`) when a binary is present.
+# This file is not used for live capture and does not load Npcap.
+
+vars:
+  address-groups:
+    HOME_NET: "any"
+    EXTERNAL_NET: "any"
+  port-groups:
+    HTTP_PORTS: "80"
+    SSH_PORTS: "22"
+    MODBUS_PORTS: "502"
+    DNP3_PORTS: "20000"
+    FILE_DATA_PORTS: "[$HTTP_PORTS]"
+    FTP_PORTS: "21"
+
+default-log-dir: .
+outputs:
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: eve.json
+      types:
+        - alert
+
+logging:
+  default-log-level: notice
+  outputs:
+    - console:
+        enabled: yes
+
+# Empty until an Emerging Threats Open snapshot is placed beside this file.
+# Do not point this at an ET Pro URL. Primer does not download rules.
+rule-files: []
