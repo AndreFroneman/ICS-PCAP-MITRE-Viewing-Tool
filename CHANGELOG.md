@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.2
+
+The release page is simplified. The app is the same as 2.0.0 and 2.0.1.
+
+- The release has exactly three files: `Primer_2.0.2_x64-setup.exe`, `README.md`, and `GPL-2.0-LICENSE.txt`. The documentation zip, `SHA256SUMS.txt`, and the Wireshark source archive are no longer attached. The README links the matching Wireshark source and its SHA-256.
+- The README is now the single user document: download, install, quick start, triage levels, screens, offline questions, privacy, and licence.
+- Publishing a `v*` tag replaces the release page with the new version and removes older releases. Their git tags are kept.
+
 ## 2.0.1
 
 The first Windows installer for Primer 2. The app is the same as 2.0.0. The `v2.0.0` tag never produced an installer, so 2.0.1 is the version to download.

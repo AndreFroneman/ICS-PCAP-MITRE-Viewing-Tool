@@ -52,72 +52,56 @@ jobs:
         with:
           projectPath: .
           args: --bundles nsis
-      - name: Collect the installer, the documentation, and checksums
+      - name: Collect the release files
         shell: pwsh
         run: |
           $v = $env:PRIMER_VERSION
           $exe = Get-ChildItem src-tauri/target/release/bundle/nsis/*.exe | Select-Object -First 1
           if (-not $exe) { throw "NSIS installer was not produced" }
-          Copy-Item $exe.FullName "Primer_${v}_x64-setup.exe"
-          Compress-Archive -Path README.md, CHANGELOG.md, LICENSE, THIRD_PARTY_NOTICES.md, docs -DestinationPath "Primer_${v}_docs.zip" -Force
-          Copy-Item src-tauri/target/wireshark-4.6.9.tar.xz "wireshark-4.6.9.tar.xz"
-          $lines = foreach ($f in "Primer_${v}_x64-setup.exe", "Primer_${v}_docs.zip", "wireshark-4.6.9.tar.xz") {
-            "{0}  {1}" -f (Get-FileHash $f -Algorithm SHA256).Hash.ToLower(), $f
-          }
-          $lines | Set-Content -Encoding ascii "SHA256SUMS.txt"
-          Get-Content SHA256SUMS.txt
+          New-Item -ItemType Directory -Force release | Out-Null
+          Copy-Item $exe.FullName "release/Primer_${v}_x64-setup.exe"
+          Copy-Item README.md "release/README.md"
+          Copy-Item LICENSE "release/GPL-2.0-LICENSE.txt"
+          Get-ChildItem release | ForEach-Object { "{0}  {1}  {2:N0} bytes" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name, $_.Length }
       - name: Upload the installer
         uses: actions/upload-artifact@v4
         with:
           name: Primer_${{ env.PRIMER_VERSION }}_x64-setup
-          path: |
-            Primer_${{ env.PRIMER_VERSION }}_x64-setup.exe
-            Primer_${{ env.PRIMER_VERSION }}_docs.zip
-            SHA256SUMS.txt
-            wireshark-4.6.9.tar.xz
+          path: release/
           if-no-files-found: error
-      - name: Attach the installer, documentation, and matching Wireshark source to the release
+      # On a v* tag the release page is rebuilt with exactly three files: the installer,
+      # README.md, and the GPL licence. Older releases are then removed so only the newest
+      # version is listed. Their git tags are kept, so every version's source stays reachable.
+      - name: Publish the release (installer, README, GPL licence)
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          name: Primer ${{ env.PRIMER_VERSION }}
-          make_latest: "true"
-          fail_on_unmatched_files: true
-          files: |
-            Primer_${{ env.PRIMER_VERSION }}_x64-setup.exe
-            Primer_${{ env.PRIMER_VERSION }}_docs.zip
-            SHA256SUMS.txt
-            wireshark-4.6.9.tar.xz
-          body: |
-            Primer ${{ env.PRIMER_VERSION }} for 64-bit Windows 10 and 11: network captures, explained for humans, with industrial protocols and MITRE ATT&CK for Enterprise and ICS.
-
-            This is the first Windows installer for Primer 2. The v2.0.0 tag never produced one, because its build failed; see the changelog.
-
-            ## Files
-
-            | File | What it is |
-            | --- | --- |
-            | `Primer_${{ env.PRIMER_VERSION }}_x64-setup.exe` | The installer. One per-user NSIS package with the WebView2 offline runtime embedded, so an air-gapped Windows 10 PC does not download it. |
-            | `Primer_${{ env.PRIMER_VERSION }}_docs.zip` | The documentation: README, user guide, engines notes, test results, changelog, licence, and third-party notices. |
-            | `SHA256SUMS.txt` | SHA-256 of every file on this release. |
-            | `wireshark-4.6.9.tar.xz` | The source that matches the bundled TShark 4.6.9 (GPL source offer). |
-
-            ## Install
-
-            1. Download `Primer_${{ env.PRIMER_VERSION }}_x64-setup.exe`.
-            2. Optional: check it in PowerShell with `Get-FileHash .\Primer_${{ env.PRIMER_VERSION }}_x64-setup.exe` and compare with `SHA256SUMS.txt`.
-            3. Run it. The installer is not code-signed, so SmartScreen will say it is unrecognised. Choose **More info**, then **Run anyway**.
-            4. Open a `.pcap` or `.pcapng`, or start with the **Plant shift** sample.
-
-            Offline analysis does not need an administrator. TShark 4.6.9 is included as a separate program. Npcap is not included. Suricata is not included. Live capture is optional and needs Npcap, which you install yourself from https://npcap.com/#download.
-
-            ## Documentation
-
-            - User guide: https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/blob/${{ github.ref_name }}/docs/USER_GUIDE.md
-            - Engines (TShark, Suricata, Npcap, WebView2): https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/blob/${{ github.ref_name }}/docs/ENGINES.md
-            - Changelog: https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/blob/${{ github.ref_name }}/CHANGELOG.md
-            - Third-party notices: https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/blob/${{ github.ref_name }}/THIRD_PARTY_NOTICES.md
-
-            Primer is free software under GPL-2.0-or-later. It is an analysis aid: a packet capture cannot prove that a controller was exploited.
+        shell: pwsh
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $v = $env:PRIMER_VERSION
+          $tag = "${{ github.ref_name }}"
+          $notes = @'
+          Primer {VERSION} for 64-bit Windows 10 and 11.
+
+          - **Primer_{VERSION}_x64-setup.exe**: the installer. Download it and run it.
+          - **README.md**: how to install and use Primer.
+          - **GPL-2.0-LICENSE.txt**: the licence. Primer is free software under GPL-2.0-or-later.
+
+          The installer is not code-signed. If Windows SmartScreen warns you, choose **More info**, then **Run anyway**.
+          '@
+          $notes.Replace('{VERSION}', $v) | Set-Content -Encoding utf8 release-notes.md
+          $existing = @(gh release list --limit 100 --json tagName --jq '.[].tagName')
+          if ($LASTEXITCODE -ne 0) { throw "Could not list releases" }
+          if ($existing -contains $tag) {
+            gh release delete $tag --yes
+            if ($LASTEXITCODE -ne 0) { throw "Could not replace the existing $tag release" }
+          }
+          gh release create $tag "release/Primer_${v}_x64-setup.exe" "release/README.md" "release/GPL-2.0-LICENSE.txt" --title "Primer $v" --notes-file release-notes.md --latest --verify-tag
+          if ($LASTEXITCODE -ne 0) { throw "Could not create the $tag release" }
+          foreach ($old in $existing | Where-Object { $_ -and $_ -ne $tag }) {
+            Write-Host "Removing older release $old (its tag is kept)"
+            gh release delete $old --yes
+            if ($LASTEXITCODE -ne 0) { throw "Could not remove release $old" }
+          }
+          gh release view $tag --json "name,assets" --jq '.name, (.assets[] | .name)'

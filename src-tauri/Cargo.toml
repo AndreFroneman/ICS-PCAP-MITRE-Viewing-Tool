@@ -1,6 +1,6 @@
 [package]
 name = "primer"
-version = "2.0.1"
+version = "2.0.2"
 description = "Primer packet capture investigation tool"
 authors = ["Andre Froneman"]
 edition = "2021"

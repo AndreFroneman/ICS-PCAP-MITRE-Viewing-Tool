@@ -2,158 +2,97 @@
 
 **Network captures, explained for humans.**
 
-Primer opens a packet capture and tells you, in plain English, what the traffic is doing, which machines look like plant equipment, and how that maps to MITRE ATT&CK for Enterprise and for ICS. It is an investigation tool for people who are not packet experts. It is not a Wireshark clone, and a capture on its own is not proof that a controller was exploited.
+Primer opens a packet capture (`.pcap` or `.pcapng`) and tells you, in plain English, what the traffic is doing, which machines look like plant equipment, and how that maps to MITRE ATT&CK for Enterprise and for ICS. It is a Windows app for people who are not packet experts. You do not need Wireshark.
 
-![Primer home screen](docs/images/primer-home.png)
+![Primer home screen](https://raw.githubusercontent.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/main/docs/images/primer-home.png)
 
-Built by **Andre Froneman**
-GitHub: [AndreFroneman](https://github.com/AndreFroneman)
-LinkedIn: https://www.linkedin.com/in/REPLACE-ME
-
-Primer is free software under the GNU General Public License, version 2 or later. See `LICENSE`.
+Built by **Andre Froneman** · GitHub: [AndreFroneman](https://github.com/AndreFroneman)
 
 ---
 
 ## Download
 
-**[Download Primer 2.0.1 for Windows (`Primer_2.0.1_x64-setup.exe`)](https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/releases/download/v2.0.1/Primer_2.0.1_x64-setup.exe)**
+**[Download Primer 2.0.2 for Windows — `Primer_2.0.2_x64-setup.exe`](https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/releases/download/v2.0.2/Primer_2.0.2_x64-setup.exe)**
 
-Everything for version 2 is on the [v2.0.1 release page](https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/releases/tag/v2.0.1):
+The [release page](https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/releases/latest) has three files: the installer, this README, and the GPL licence.
 
-| File | What it is |
-| --- | --- |
-| `Primer_2.0.1_x64-setup.exe` | The Windows installer. |
-| `Primer_2.0.1_docs.zip` | This README, the user guide, engine notes, test results, changelog, licence, and third-party notices, for a machine with no internet. |
-| `SHA256SUMS.txt` | SHA-256 of every file on the release. |
-| `wireshark-4.6.9.tar.xz` | The source that matches the bundled TShark. |
+## Install
 
-To check the download, run this in PowerShell in your Downloads folder and compare the result with `SHA256SUMS.txt`:
+1. Run `Primer_2.0.2_x64-setup.exe`.
+2. Windows SmartScreen will say it does not recognise the app, because the installer is not code-signed. Choose **More info**, then **Run anyway**.
+3. The installer is for your Windows user only. You do not need an administrator to analyse a saved capture.
 
-```powershell
-Get-FileHash .\Primer_2.0.1_x64-setup.exe -Algorithm SHA256
-```
-
-The installer is **not code-signed**. Windows SmartScreen will say it does not recognise the app.
-
-1. Choose **More info**.
-2. Choose **Run anyway**.
-
-What the installer is:
-
-- One NSIS package, for the current user. Ordinary offline analysis does not ask for an administrator.
-- Built for 64-bit Windows 10 and Windows 11.
-- The WebView2 offline installer is inside the package, so an air-gapped Windows 10 PC does not have to download it. Windows 11 already has WebView2. On a clean Windows 10 machine, Microsoft's embedded installer may still ask for an administrator once, because that runtime is installed for the machine. Primer itself stays per-user.
-- TShark 4.6.9 is included as its own program, for a deeper look at a frame. Primer's own decoder still opens the file if TShark is missing.
-- Npcap is **not** included. The free Npcap licence does not allow bundling it.
-- Suricata is **not** included. The usual Windows build will not even read a file unless Npcap's `wpcap.dll` is present. See `docs/ENGINES.md`.
-
-Cases are stored under `Documents\Primer\Cases`. The folder Primer offers when you browse for a new file is still `C:\Virtual Share\Pcap`.
-
----
-
-## Features
-
-**Open a capture**
-
-- Classic pcap and pcapng, both byte orders, microsecond and nanosecond timestamps, modified pcap, gzip, and several odd but real variants. The format is taken from the bytes, not the filename.
-- Packet list, decode, hex, follow stream, and a Wireshark-like display filter.
-- Parsing runs in a worker so the window stays responsive. Above a large size, Primer keeps the summary on screen and reads one frame from the case file when you open it.
-
-**A case, not a throwaway view**
-
-- The desktop app copies the file, records SHA-256, and marks that copy read-only. The original path is left alone.
-- Notes, an activity log, and approve / reject / escalate on each finding. The engines do not make that decision.
-
-**Industrial traffic**
-
-- Modbus/TCP, DNP3, S7comm, EtherNet/IP/CIP, BACnet, IEC 60870-5-104, OPC UA Hello, and MQTT, beside ordinary IT protocols.
-- Likely roles (PLC, engineering workstation, SCADA, historian, and others) with a confidence and an alternative. The screen says "likely".
-- Writes and commands are shown with the alternative that they may be maintenance.
-
-**Findings you can defend**
-
-- Each card is **observed** (the bytes show it) or **possible** (the bytes are only consistent with that reading).
-- Triage is three levels: anomaly, suspicious activity, and enough to open a formal investigation. Level 3 still is not a confirmed exploit.
-- MITRE ATT&CK 20.0, Enterprise and ICS, offline. A list of techniques is not an attack chain.
-- Optional Suricata hits, if you supply a binary that can run `suricata -r` with no Npcap. They sit behind a filter so they cannot bury a Modbus write.
-
-**Ask the capture**
-
-- Works fully offline. No model is required.
-- Questions can name a role, a clock time, a sequence, or whether there is enough to open an investigation. Answers cite packet numbers the tools actually returned.
-- Optional narrators stay behind a consent panel: an in-browser model, Ollama on this PC, or a cloud API with a key you provide. Cloud use shows the text that will be sent and can redact addresses. The raw capture is not uploaded.
-
-**Report**
-
-- One investigation report: executive summary, scope, evidence and hashes, assets, topology, suspicious activity, exploit assessment, MITRE, OT notes, packet evidence, limitations, and next actions.
-- HTML, PDF, JSON, and CSV. If there is no level-3 finding, the exploit section is empty on purpose.
-
-**Live capture (optional, separate)**
-
-- Only if Npcap is already installed, and only from the Live capture button.
-- Primer detects Npcap. If it is missing, the screen explains that and links to [npcap.com](https://npcap.com/#download).
-- A recording is written to a pcapng and then opened as a normal case. Capturing may ask for an administrator. Opening a saved file never does.
-
----
+Works on 64-bit Windows 10 and Windows 11. Everything Primer needs is inside the installer, including Microsoft's WebView2 runtime for PCs with no internet. On a brand-new Windows 10 PC that runtime may ask for an administrator once. Windows 11 already has it.
 
 ## Quick start
 
-1. Install Primer from the Releases page. If SmartScreen warns you, choose **More info**, then **Run anyway**.
-2. Double-click a `.pcap` or `.pcapng`, or open Primer and choose a file. Try the Plant shift sample first.
-3. Read the triage line. Level 1 can be ordinary plant traffic. Level 3 means "open an investigation", not "the PLC was hacked".
-4. Open **Findings** and **OT**. Use **Approve**, **Reject**, or **Escalate** when you have decided.
-5. Ask a question in **Ask**. Click a packet number to see the frame.
-6. Export the investigation report from **Report**.
+1. Double-click a `.pcap` or `.pcapng`, or open Primer and choose a file. Your captures folder `C:\Virtual Share\Pcap` is offered by default. To see what Primer does first, open the **Plant shift** sample.
+2. Read the **triage line** at the top (see below).
+3. Open **Findings** and **OT**. Mark each finding **Approve**, **Reject**, or **Escalate** once you have decided.
+4. Type a question in **Ask**. Click a packet number in the answer to see that packet.
+5. Export the investigation report from **Report** (HTML, PDF, JSON, or CSV).
 
-A longer walkthrough is in `docs/USER_GUIDE.md`.
+Primer copies each capture into `Documents\Primer\Cases`, records its SHA-256, and makes the copy read-only. Your original file is never changed.
 
----
+## The triage line
 
-## Documentation
+| Level | What it means | What it does not mean |
+| --- | --- | --- |
+| 1 Anomaly | Something looks unusual, or this is a normal plant. It may be maintenance, a bad configuration, or a test. | It is not an incident. |
+| 2 Suspicious activity | Worth a person's time. Keep the capture. | Not enough, on its own, to open a formal incident. |
+| 3 Credible incident evidence | Several independent checks line up. Open a formal investigation and preserve the evidence. | Still not proof that a controller was exploited. You also need controller diagnostics, the engineering PC's logs, and the change ticket. |
 
-| Document | Read it for |
-| --- | --- |
-| [User guide](docs/USER_GUIDE.md) | Installing, opening a capture, the triage levels, every screen, and the questions Ask answers offline. |
-| [Engines](docs/ENGINES.md) | What TShark, Suricata, Zeek, Npcap, and WebView2 do (or do not do) in this build. |
-| [Test results](docs/TEST_RESULTS.md) | What was tested, on which captures, and what was not. |
-| [Changelog](CHANGELOG.md) | What changed in each version. |
-| [Third-party notices](THIRD_PARTY_NOTICES.md) | Licences and the source offer for bundled programs. |
+Each finding says whether it is **observed** (the bytes show it, for example a Modbus write) or **possible** (the bytes are only consistent with that reading, for example "looks like a tunnel"). Every industrial write also says it may be maintenance.
 
-The same files are in `Primer_2.0.1_docs.zip` on the release.
+## The screens
 
----
+- **Overview**: the case on one page, with the triage level, the loudest findings, and the likely role of each device.
+- **Assets**: a "likely" role for each address (PLC, engineering workstation, SCADA, historian, and others), with a confidence and an alternative.
+- **Packets**: the packet list, decode, hex, follow-stream, and a simple filter such as `modbus.func == 16` or `ip.addr == 10.10.1.50`.
+- **Talk**: who talked to whom, over which service, and how much.
+- **OT**: industrial function codes and addresses, and who wrote versus who only read.
+- **Findings**: the evidence cards. **Industrial** is the default view, so IT noise cannot hide a PLC write.
+- **ATT&CK**: the MITRE ATT&CK 20.0 matrices for Enterprise and ICS, coloured where a finding maps to a technique.
+- **Timeline**: findings in the order the capture recorded them.
+- **Attribution**: technical fingerprints (TTL, TCP options, DHCP names, user agents). These are never proof of nationality or sponsor.
+- **Ask**: plain-English questions, answered from the packets.
+- **Case**: name, investigator, hash, notes, and a log of every decision.
+- **Report**: the investigation report.
 
-## Build from source
+Industrial protocols decoded: Modbus/TCP, DNP3, S7comm, EtherNet/IP/CIP, BACnet, IEC 60870-5-104, OPC UA (Hello), and MQTT, alongside ordinary IT protocols.
 
-You need Node.js 22, Rust stable, and the usual Tauri prerequisites for the platform you are building on. The Windows installer is built on a Windows runner; see `.github/workflows/windows.yml`.
+## Questions Ask answers offline
 
-```bash
-npm install
-npm test
-npm run dev            # browser, no engines, no case database
-npm run desktop:build  # Windows NSIS installer, on Windows
-```
+No AI model or internet connection is needed for these:
 
-The browser build is the same screens without TShark, Suricata, or the case folder. That is deliberate.
+- "Did anyone write to the controller?"
+- "Show me all traffic going to PLC1."
+- "Which engineering workstation communicated with 10.10.1.50?"
+- "Show me suspicious activity between 6:00 AM and 8:00 AM." (Times are the capture's clock, in UTC.)
+- "Which devices communicated with the Internet?"
+- "Was there evidence of network reconnaissance?"
+- "Which MITRE ATT&CK techniques are supported by the evidence?"
+- "Can you reconstruct the sequence of events before the PLC stopped communicating?"
+- "Is there enough evidence to open a formal incident investigation?"
 
-The Windows workflow downloads Wireshark 4.6.9, installs it silently so Npcap is not installed, and copies `tshark.exe` into the app. It also uploads `wireshark-4.6.9.tar.xz`, which is the source that matches that binary. It refuses to bundle `suricata.exe`, `wpcap.dll`, or an Npcap installer.
+In **Settings** you can optionally add a smarter narrator: a model inside Primer, Ollama on this PC, or a cloud service with your own API key. Before anything goes to the cloud, Primer shows you the exact text it will send, with IP and MAC addresses redacted by default. The capture itself is never uploaded.
 
----
+## Live capture (optional)
+
+Primer can record live traffic only if **Npcap** is already installed. Get it from [npcap.com](https://npcap.com/#download); its licence does not allow Primer to include it. Recording may ask for an administrator. When you stop recording, the file opens as a normal case.
 
 ## Privacy
 
-The capture stays on this computer unless you turn on a cloud narrator and approve the exact text Primer shows you. Redaction of IP and MAC addresses is on by default.
-
----
+Your captures stay on your computer unless you turn on a cloud narrator and approve the exact text Primer shows you.
 
 ## Licence
 
-Primer is GPL-2.0-or-later. `LICENSE` is the licence. `THIRD_PARTY_NOTICES.md` says where to get the Wireshark and Suricata source, and which other licences ship with the app.
+Primer is free software under the GNU General Public License, version 2 or later. The full text is in [`LICENSE`](LICENSE), and it is the GPL file on the release page.
 
-TShark is a separate, unmodified program. Primer does not link `libwireshark`. Wireshark is a trademark of the Wireshark Foundation. Primer is not endorsed by the Wireshark project, the Suricata project, or Emerging Threats.
+The installer includes TShark 4.6.9 from the Wireshark project as a separate, unmodified program. Wireshark is also GPL. Its matching source code is at <https://www.wireshark.org/download/src/all-versions/wireshark-4.6.9.tar.xz> (SHA-256 `d062d416a1ab3a49975aafe3a671c882dde0562ccd71b078808ceb59d465fc0f`). If you pass the installer on, pass that link on with it. Wireshark is a trademark of the Wireshark Foundation, and Primer is not endorsed by the Wireshark project.
 
----
+Primer's own source code is in this repository.
 
 ## Disclaimer
 
-Primer is an analysis aid. Verify every finding before you act on it, and only analyse traffic you are allowed to inspect. A packet capture cannot prove that a controller was successfully exploited.
+Primer is an analysis aid. Check every finding before you act on it, and only analyse traffic you are allowed to inspect. A packet capture cannot prove that a controller was successfully exploited.

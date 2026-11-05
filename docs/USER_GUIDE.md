@@ -4,9 +4,7 @@ This is the walkthrough for someone investigating a capture. You do not need to 
 
 ## Install
 
-Download `Primer_2.0.1_x64-setup.exe` from the [v2.0.1 release](https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/releases/tag/v2.0.1). If the PC that will run Primer has no internet, also take `Primer_2.0.1_docs.zip` (this guide and the other documents) and `wireshark-4.6.9.tar.xz` (the source for the bundled TShark).
-
-To confirm the file was not damaged or swapped on the way, run `Get-FileHash .\Primer_2.0.1_x64-setup.exe -Algorithm SHA256` in PowerShell and compare the result with the line in `SHA256SUMS.txt` from the same release.
+Download `Primer_2.0.2_x64-setup.exe` from the [release page](https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/releases/latest). The page has three files: the installer, `README.md`, and `GPL-2.0-LICENSE.txt`.
 
 The file is not code-signed. Windows SmartScreen will warn you. Choose **More info**, then **Run anyway**.
 

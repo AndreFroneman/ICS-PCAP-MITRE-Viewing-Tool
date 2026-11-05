@@ -121,7 +121,7 @@ export function reportCaseHtml(meta: CaseReportMeta, dossier: Dossier): string {
 export function reportCaseJson(meta: CaseReportMeta, dossier: Dossier): string {
   return JSON.stringify({
     generator: "Primer",
-    version: "2.0.1",
+    version: "2.0.2",
     attack: ATTACK_SOURCE,
     meta,
     triage: dossier.triage,
