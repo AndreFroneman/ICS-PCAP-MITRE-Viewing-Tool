@@ -14,6 +14,18 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Read the Primer version
+        shell: pwsh
+        run: |
+          $version = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          if (-not $version) { throw "No version in src-tauri/tauri.conf.json" }
+          $pkg = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($pkg -ne $version) { throw "package.json is $pkg but tauri.conf.json is $version" }
+          if ("${{ github.ref }}".StartsWith("refs/tags/v") -and "${{ github.ref_name }}" -ne "v$version") {
+            throw "Tag ${{ github.ref_name }} does not match version $version"
+          }
+          "PRIMER_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Building Primer $version"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -43,12 +55,13 @@ jobs:
       - name: Collect the installer, the documentation, and checksums
         shell: pwsh
         run: |
+          $v = $env:PRIMER_VERSION
           $exe = Get-ChildItem src-tauri/target/release/bundle/nsis/*.exe | Select-Object -First 1
           if (-not $exe) { throw "NSIS installer was not produced" }
-          Copy-Item $exe.FullName "Primer_2.0.0_x64-setup.exe"
-          Compress-Archive -Path README.md, CHANGELOG.md, LICENSE, THIRD_PARTY_NOTICES.md, docs -DestinationPath "Primer_2.0.0_docs.zip" -Force
+          Copy-Item $exe.FullName "Primer_${v}_x64-setup.exe"
+          Compress-Archive -Path README.md, CHANGELOG.md, LICENSE, THIRD_PARTY_NOTICES.md, docs -DestinationPath "Primer_${v}_docs.zip" -Force
           Copy-Item src-tauri/target/wireshark-4.6.9.tar.xz "wireshark-4.6.9.tar.xz"
-          $lines = foreach ($f in "Primer_2.0.0_x64-setup.exe", "Primer_2.0.0_docs.zip", "wireshark-4.6.9.tar.xz") {
+          $lines = foreach ($f in "Primer_${v}_x64-setup.exe", "Primer_${v}_docs.zip", "wireshark-4.6.9.tar.xz") {
             "{0}  {1}" -f (Get-FileHash $f -Algorithm SHA256).Hash.ToLower(), $f
           }
           $lines | Set-Content -Encoding ascii "SHA256SUMS.txt"
@@ -56,10 +69,10 @@ jobs:
       - name: Upload the installer
         uses: actions/upload-artifact@v4
         with:
-          name: Primer_2.0.0_x64-setup
+          name: Primer_${{ env.PRIMER_VERSION }}_x64-setup
           path: |
-            Primer_2.0.0_x64-setup.exe
-            Primer_2.0.0_docs.zip
+            Primer_${{ env.PRIMER_VERSION }}_x64-setup.exe
+            Primer_${{ env.PRIMER_VERSION }}_docs.zip
             SHA256SUMS.txt
             wireshark-4.6.9.tar.xz
           if-no-files-found: error
@@ -67,29 +80,32 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          name: Primer 2.0.0
+          name: Primer ${{ env.PRIMER_VERSION }}
+          make_latest: "true"
           fail_on_unmatched_files: true
           files: |
-            Primer_2.0.0_x64-setup.exe
-            Primer_2.0.0_docs.zip
+            Primer_${{ env.PRIMER_VERSION }}_x64-setup.exe
+            Primer_${{ env.PRIMER_VERSION }}_docs.zip
             SHA256SUMS.txt
             wireshark-4.6.9.tar.xz
           body: |
-            Primer 2.0.0 for 64-bit Windows 10 and 11: network captures, explained for humans, with industrial protocols and MITRE ATT&CK for Enterprise and ICS.
+            Primer ${{ env.PRIMER_VERSION }} for 64-bit Windows 10 and 11: network captures, explained for humans, with industrial protocols and MITRE ATT&CK for Enterprise and ICS.
+
+            This is the first Windows installer for Primer 2. The v2.0.0 tag never produced one, because its build failed; see the changelog.
 
             ## Files
 
             | File | What it is |
             | --- | --- |
-            | `Primer_2.0.0_x64-setup.exe` | The installer. One per-user NSIS package with the WebView2 offline runtime embedded, so an air-gapped Windows 10 PC does not download it. |
-            | `Primer_2.0.0_docs.zip` | The documentation: README, user guide, engines notes, test results, changelog, licence, and third-party notices. |
+            | `Primer_${{ env.PRIMER_VERSION }}_x64-setup.exe` | The installer. One per-user NSIS package with the WebView2 offline runtime embedded, so an air-gapped Windows 10 PC does not download it. |
+            | `Primer_${{ env.PRIMER_VERSION }}_docs.zip` | The documentation: README, user guide, engines notes, test results, changelog, licence, and third-party notices. |
             | `SHA256SUMS.txt` | SHA-256 of every file on this release. |
             | `wireshark-4.6.9.tar.xz` | The source that matches the bundled TShark 4.6.9 (GPL source offer). |
 
             ## Install
 
-            1. Download `Primer_2.0.0_x64-setup.exe`.
-            2. Optional: check it in PowerShell with `Get-FileHash .\Primer_2.0.0_x64-setup.exe` and compare with `SHA256SUMS.txt`.
+            1. Download `Primer_${{ env.PRIMER_VERSION }}_x64-setup.exe`.
+            2. Optional: check it in PowerShell with `Get-FileHash .\Primer_${{ env.PRIMER_VERSION }}_x64-setup.exe` and compare with `SHA256SUMS.txt`.
             3. Run it. The installer is not code-signed, so SmartScreen will say it is unrecognised. Choose **More info**, then **Run anyway**.
             4. Open a `.pcap` or `.pcapng`, or start with the **Plant shift** sample.
 
@@ -97,10 +113,10 @@ jobs:
 
             ## Documentation
 
-            - User guide: https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/blob/v2.0.0/docs/USER_GUIDE.md
-            - Engines (TShark, Suricata, Npcap, WebView2): https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/blob/v2.0.0/docs/ENGINES.md
-            - Changelog: https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/blob/v2.0.0/CHANGELOG.md
-            - Third-party notices: https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/blob/v2.0.0/THIRD_PARTY_NOTICES.md
+            - User guide: https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/blob/${{ github.ref_name }}/docs/USER_GUIDE.md
+            - Engines (TShark, Suricata, Npcap, WebView2): https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/blob/${{ github.ref_name }}/docs/ENGINES.md
+            - Changelog: https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/blob/${{ github.ref_name }}/CHANGELOG.md
+            - Third-party notices: https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/blob/${{ github.ref_name }}/THIRD_PARTY_NOTICES.md
 
             Primer is free software under GPL-2.0-or-later. It is an analysis aid: a packet capture cannot prove that a controller was exploited.
         env:

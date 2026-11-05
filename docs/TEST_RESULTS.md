@@ -38,10 +38,10 @@ The first two runs of `.github/workflows/windows.yml` (on `main` and on the `v2.
 - `npm test`: 36 tests passed (4 files).
 - The Tauri crates and the npm packages are on matching versions (`tauri` 2.12, `dialog` 2.8.4, `fs` 2.7.1, `http` 2.8.3).
 
-The workflow now runs `npm test` before it builds. The installer itself is built on the GitHub `windows-latest` runner. The SHA-256 of each released file is in `SHA256SUMS.txt` on the release.
+The workflow now runs `npm test` before it builds. With the fix, the `main` build on the GitHub `windows-latest` runner passed the tests and staged TShark 4.6.9 without Npcap. The installer is released as 2.0.1, because the `v2.0.0` tag points at the commit that could not build. The SHA-256 of each released file is in `SHA256SUMS.txt` on the release.
 
 ## Not run here
 
-- Installing the Windows installer on a test PC. `.github/workflows/windows.yml` builds the NSIS package with WebView2 embedded on a Windows runner and, for a `v*` tag, attaches `Primer_2.0.0_x64-setup.exe`, `Primer_2.0.0_docs.zip`, `SHA256SUMS.txt`, and `wireshark-4.6.9.tar.xz` to the release.
+- Installing the Windows installer on a test PC. `.github/workflows/windows.yml` builds the NSIS package with WebView2 embedded on a Windows runner and, for a `v*` tag, attaches `Primer_<version>_x64-setup.exe`, `Primer_<version>_docs.zip`, `SHA256SUMS.txt`, and `wireshark-4.6.9.tar.xz` to the release.
 - TShark itself, Suricata `-r`, and Npcap. The parsers were tested with fixtures. The Suricata binary was left out on purpose; see `docs/ENGINES.md`.
 - A clean Windows 10 and Windows 11 virtual machine. That is still the right place to confirm SmartScreen, the per-user install, and that offline analysis does not ask for an administrator.

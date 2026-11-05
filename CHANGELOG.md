@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.1
+
+The first Windows installer for Primer 2. The app is the same as 2.0.0. The `v2.0.0` tag never produced an installer, so 2.0.1 is the version to download.
+
+- Release build fix: the `v2.0.0` workflow runs failed at the installer step and that release had no files. `tauri-apps/tauri-action` runs `npm run tauri build`, and `package.json` had no `tauri` script. The script is added.
+- The workflow runs `npm test` before it builds, reads the version from `tauri.conf.json`, and refuses a tag that does not match it.
+- The release carries the installer (`Primer_2.0.1_x64-setup.exe`), a documentation bundle (`Primer_2.0.1_docs.zip`), `SHA256SUMS.txt`, and the matching Wireshark source.
+- README: a direct download link, the list of release files, how to check the SHA-256, and a documentation index. The user guide says the same.
+
 ## 2.0.0
 
 Primer becomes an offline investigation tool. The 1.0.1 decoder, Horizon look, findings, ATT&CK matrices, and offline Ask path are still there.
@@ -15,7 +24,7 @@ Primer becomes an offline investigation tool. The 1.0.1 decoder, Horizon look, f
 - One per-user NSIS installer with the WebView2 offline runtime embedded. The installer is not code-signed.
 - Primer is GPL-2.0-or-later.
 
-Release build fix (5 November 2026): the first `v2.0.0` workflow runs failed at the installer step and the release had no files. `tauri-apps/tauri-action` runs `npm run tauri build`, and `package.json` had no `tauri` script. The script is added, the workflow now runs `npm test` before building, and the release carries the installer, a documentation bundle (`Primer_2.0.0_docs.zip`), `SHA256SUMS.txt`, and the matching Wireshark source.
+No installer was published for 2.0.0. Use 2.0.1.
 
 ## 1.0.1
 

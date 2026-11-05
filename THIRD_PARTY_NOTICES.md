@@ -6,7 +6,7 @@ This is an engineering record, not a legal opinion.
 
 ## Wireshark / TShark
 
-Wireshark, including the `tshark` and `dumpcap` programs, is published under the GNU General Public License, version 2 or, at your option, any later version. Confirm that against the `COPYING` file of the version you actually have. Primer 2.0.0 pins **Wireshark 4.6.9**.
+Wireshark, including the `tshark` and `dumpcap` programs, is published under the GNU General Public License, version 2 or, at your option, any later version. Confirm that against the `COPYING` file of the version you actually have. Primer 2.0.1 pins **Wireshark 4.6.9**.
 
 - Windows installer that the build copies from: https://www.wireshark.org/download/win64/Wireshark-4.6.9-x64.exe
 - SHA-256: `bf9b5ce8a89f244c376a9b1a946276eaa06463dde3e33069a34d7f102f5878cf`
@@ -14,7 +14,7 @@ Wireshark, including the `tshark` and `dumpcap` programs, is published under the
 - SHA-256: `d062d416a1ab3a49975aafe3a671c882dde0562ccd71b078808ceb59d465fc0f`
 - Older and newer source tarballs: https://www.wireshark.org/download/src/
 
-The Windows release attaches `wireshark-4.6.9.tar.xz` next to `Primer_2.0.0_x64-setup.exe`. If you received the installer on a USB stick, share, or ticket and you do not have GitHub, the same delivery should include that source archive. A link alone is a weak offer for an air-gapped machine.
+The Windows release attaches `wireshark-4.6.9.tar.xz` next to `Primer_2.0.1_x64-setup.exe`. If you received the installer on a USB stick, share, or ticket and you do not have GitHub, the same delivery should include that source archive. A link alone is a weak offer for an air-gapped machine.
 
 Primer runs `tshark.exe` as a separate, unmodified program and reads its output. Primer does not link `libwireshark`, `libwiretap`, or `libwsutil`. The silent Wireshark install used at build time does not install Npcap, and the staging script deletes any Npcap installer it finds. Wireshark is a trademark of the Wireshark Foundation. The Wireshark project does not endorse Primer.
 
@@ -27,7 +27,7 @@ Source:
 - https://suricata.io/download/ and the release tags at https://github.com/OISF/suricata
 - The source tarball for a given version is linked from those pages (`suricata-<version>.tar.gz`).
 
-**Primer 2.0.0 does not bundle a Suricata binary.** The usual Windows build is linked to Npcap's `wpcap.dll` and will not start, even for `suricata -r`, when that DLL is missing. Npcap's free licence forbids bundling the driver, and installing it needs an administrator. An MSYS2 build against libpcap can read a file without Npcap, but that binary was not proven on a clean Windows 10 machine in this environment, so it is not in the installer. The hook in `src-tauri/src/suricata.rs` runs `suricata -r` if you place such a binary yourself. If you do, you must ship the matching Suricata source with that binary, the same way the Wireshark source is shipped.
+**Primer 2.0.1 does not bundle a Suricata binary.** The usual Windows build is linked to Npcap's `wpcap.dll` and will not start, even for `suricata -r`, when that DLL is missing. Npcap's free licence forbids bundling the driver, and installing it needs an administrator. An MSYS2 build against libpcap can read a file without Npcap, but that binary was not proven on a clean Windows 10 machine in this environment, so it is not in the installer. The hook in `src-tauri/src/suricata.rs` runs `suricata -r` if you place such a binary yourself. If you do, you must ship the matching Suricata source with that binary, the same way the Wireshark source is shipped.
 
 ## Emerging Threats Open
 

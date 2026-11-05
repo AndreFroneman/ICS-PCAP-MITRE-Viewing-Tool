@@ -16,21 +16,21 @@ Primer is free software under the GNU General Public License, version 2 or later
 
 ## Download
 
-**[Download Primer 2.0.0 for Windows (`Primer_2.0.0_x64-setup.exe`)](https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/releases/download/v2.0.0/Primer_2.0.0_x64-setup.exe)**
+**[Download Primer 2.0.1 for Windows (`Primer_2.0.1_x64-setup.exe`)](https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/releases/download/v2.0.1/Primer_2.0.1_x64-setup.exe)**
 
-Everything for version 2 is on the [v2.0.0 release page](https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/releases/tag/v2.0.0):
+Everything for version 2 is on the [v2.0.1 release page](https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/releases/tag/v2.0.1):
 
 | File | What it is |
 | --- | --- |
-| `Primer_2.0.0_x64-setup.exe` | The Windows installer. |
-| `Primer_2.0.0_docs.zip` | This README, the user guide, engine notes, test results, changelog, licence, and third-party notices, for a machine with no internet. |
+| `Primer_2.0.1_x64-setup.exe` | The Windows installer. |
+| `Primer_2.0.1_docs.zip` | This README, the user guide, engine notes, test results, changelog, licence, and third-party notices, for a machine with no internet. |
 | `SHA256SUMS.txt` | SHA-256 of every file on the release. |
 | `wireshark-4.6.9.tar.xz` | The source that matches the bundled TShark. |
 
 To check the download, run this in PowerShell in your Downloads folder and compare the result with `SHA256SUMS.txt`:
 
 ```powershell
-Get-FileHash .\Primer_2.0.0_x64-setup.exe -Algorithm SHA256
+Get-FileHash .\Primer_2.0.1_x64-setup.exe -Algorithm SHA256
 ```
 
 The installer is **not code-signed**. Windows SmartScreen will say it does not recognise the app.
@@ -119,7 +119,7 @@ A longer walkthrough is in `docs/USER_GUIDE.md`.
 | [Changelog](CHANGELOG.md) | What changed in each version. |
 | [Third-party notices](THIRD_PARTY_NOTICES.md) | Licences and the source offer for bundled programs. |
 
-The same files are in `Primer_2.0.0_docs.zip` on the release.
+The same files are in `Primer_2.0.1_docs.zip` on the release.
 
 ---
 
