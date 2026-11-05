@@ -29,8 +29,19 @@ Downloaded for this run only, from the ITI `ICS-Security-Tools` repository.
 
 No finding was invented for a file that did not contain the bytes. The quiet plant produced none.
 
+## Windows check (5 November 2026)
+
+The first two runs of `.github/workflows/windows.yml` (on `main` and on the `v2.0.0` tag) failed at the installer step, so the release had no files. `tauri-apps/tauri-action` calls `npm run tauri build`, and `package.json` had no `tauri` script. On a Windows 11 PC with Node 24, `npm run tauri` reproduced `Missing script: "tauri"`. With the script added:
+
+- `npm run tauri -- --version` reports `tauri-cli 2.12.4`.
+- `npm run build` (`tsc -b && vite build`) completes.
+- `npm test`: 36 tests passed (4 files).
+- The Tauri crates and the npm packages are on matching versions (`tauri` 2.12, `dialog` 2.8.4, `fs` 2.7.1, `http` 2.8.3).
+
+The workflow now runs `npm test` before it builds. The installer itself is built on the GitHub `windows-latest` runner. The SHA-256 of each released file is in `SHA256SUMS.txt` on the release.
+
 ## Not run here
 
-- The Windows installer. This machine cannot build the NSIS package or embed WebView2. `.github/workflows/windows.yml` does that on a Windows runner and, for a `v*` tag, attaches `Primer_2.0.0_x64-setup.exe` and `wireshark-4.6.9.tar.xz` to the release.
+- Installing the Windows installer on a test PC. `.github/workflows/windows.yml` builds the NSIS package with WebView2 embedded on a Windows runner and, for a `v*` tag, attaches `Primer_2.0.0_x64-setup.exe`, `Primer_2.0.0_docs.zip`, `SHA256SUMS.txt`, and `wireshark-4.6.9.tar.xz` to the release.
 - TShark itself, Suricata `-r`, and Npcap. The parsers were tested with fixtures. The Suricata binary was left out on purpose; see `docs/ENGINES.md`.
 - A clean Windows 10 and Windows 11 virtual machine. That is still the right place to confirm SmartScreen, the per-user install, and that offline analysis does not ask for an administrator.

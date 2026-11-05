@@ -13,6 +13,7 @@
     "lint": "oxlint",
     "samples": "tsx scripts/generate-samples.ts",
     "attack": "node scripts/build-attack.mjs",
+    "tauri": "tauri",
     "desktop": "tauri dev",
     "desktop:build": "tauri build"
   },

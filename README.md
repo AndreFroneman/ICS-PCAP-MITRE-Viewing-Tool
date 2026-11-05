@@ -16,7 +16,22 @@ Primer is free software under the GNU General Public License, version 2 or later
 
 ## Download
 
-The Windows installer is attached to a [GitHub Release](https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/releases) when a `v*` tag is pushed. The file is `Primer_2.0.0_x64-setup.exe`.
+**[Download Primer 2.0.0 for Windows (`Primer_2.0.0_x64-setup.exe`)](https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/releases/download/v2.0.0/Primer_2.0.0_x64-setup.exe)**
+
+Everything for version 2 is on the [v2.0.0 release page](https://github.com/AndreFroneman/ICS-PCAP-MITRE-Viewing-Tool/releases/tag/v2.0.0):
+
+| File | What it is |
+| --- | --- |
+| `Primer_2.0.0_x64-setup.exe` | The Windows installer. |
+| `Primer_2.0.0_docs.zip` | This README, the user guide, engine notes, test results, changelog, licence, and third-party notices, for a machine with no internet. |
+| `SHA256SUMS.txt` | SHA-256 of every file on the release. |
+| `wireshark-4.6.9.tar.xz` | The source that matches the bundled TShark. |
+
+To check the download, run this in PowerShell in your Downloads folder and compare the result with `SHA256SUMS.txt`:
+
+```powershell
+Get-FileHash .\Primer_2.0.0_x64-setup.exe -Algorithm SHA256
+```
 
 The installer is **not code-signed**. Windows SmartScreen will say it does not recognise the app.
 
@@ -91,6 +106,20 @@ Cases are stored under `Documents\Primer\Cases`. The folder Primer offers when y
 6. Export the investigation report from **Report**.
 
 A longer walkthrough is in `docs/USER_GUIDE.md`.
+
+---
+
+## Documentation
+
+| Document | Read it for |
+| --- | --- |
+| [User guide](docs/USER_GUIDE.md) | Installing, opening a capture, the triage levels, every screen, and the questions Ask answers offline. |
+| [Engines](docs/ENGINES.md) | What TShark, Suricata, Zeek, Npcap, and WebView2 do (or do not do) in this build. |
+| [Test results](docs/TEST_RESULTS.md) | What was tested, on which captures, and what was not. |
+| [Changelog](CHANGELOG.md) | What changed in each version. |
+| [Third-party notices](THIRD_PARTY_NOTICES.md) | Licences and the source offer for bundled programs. |
+
+The same files are in `Primer_2.0.0_docs.zip` on the release.
 
 ---
 
