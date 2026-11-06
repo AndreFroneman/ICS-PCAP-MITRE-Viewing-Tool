@@ -3,8 +3,7 @@ name: Windows installer
 on:
   workflow_dispatch:
   push:
-    branches: [main]
-    tags: ["v*"]
+    branches: [primer-desktop-review]
 
 permissions:
   contents: write
@@ -69,39 +68,3 @@ jobs:
           name: Primer_${{ env.PRIMER_VERSION }}_x64-setup
           path: release/
           if-no-files-found: error
-      # On a v* tag the release page is rebuilt with exactly three files: the installer,
-      # README.md, and the GPL licence. Older releases are then removed so only the newest
-      # version is listed. Their git tags are kept, so every version's source stays reachable.
-      - name: Publish the release (installer, README, GPL licence)
-        if: startsWith(github.ref, 'refs/tags/v')
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          $v = $env:PRIMER_VERSION
-          $tag = "${{ github.ref_name }}"
-          $notes = @'
-          Primer {VERSION} for 64-bit Windows 10 and 11.
-
-          - **Primer_{VERSION}_x64-setup.exe**: the installer. Download it and run it.
-          - **README.md**: how to install and use Primer.
-          - **GPL-2.0-LICENSE.txt**: the licence. Primer is free software under GPL-2.0-or-later.
-
-          The installer is not code-signed. If Windows SmartScreen warns you, choose **More info**, then **Run anyway**.
-          '@
-          $notes.Replace('{VERSION}', $v) | Set-Content -Encoding utf8 release-notes.md
-          $existing = @(gh release list --limit 100 --json tagName --jq '.[].tagName')
-          if ($LASTEXITCODE -ne 0) { throw "Could not list releases" }
-          if ($existing -contains $tag) {
-            gh release delete $tag --yes
-            if ($LASTEXITCODE -ne 0) { throw "Could not replace the existing $tag release" }
-          }
-          gh release create $tag "release/Primer_${v}_x64-setup.exe" "release/README.md" "release/GPL-2.0-LICENSE.txt" --title "Primer $v" --notes-file release-notes.md --latest --verify-tag
-          if ($LASTEXITCODE -ne 0) { throw "Could not create the $tag release" }
-          foreach ($old in $existing | Where-Object { $_ -and $_ -ne $tag }) {
-            Write-Host "Removing older release $old (its tag is kept)"
-            gh release delete $old --yes
-            if ($LASTEXITCODE -ne 0) { throw "Could not remove release $old" }
-          }
-          gh release view $tag --json "name,assets" --jq '.name, (.assets[] | .name)'

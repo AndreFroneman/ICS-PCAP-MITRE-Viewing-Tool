@@ -121,7 +121,7 @@ export function PacketDesk({
   const story = row ? narrate(row) : null;
 
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(220px,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_320px] lg:grid-rows-[minmax(0,1fr)_280px]">
+    <div className="grid min-h-[600px] shrink-0 flex-1 grid-cols-1 grid-rows-[minmax(220px,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_320px] lg:grid-rows-[minmax(0,1fr)_280px]">
       <div className="flex min-h-[320px] flex-col border-b border-line lg:min-h-0 lg:border-r" data-tour="packets">
         <div className="pkt-head">
           <span>No.</span><span className="hide-sm">Time</span><span>Source</span><span className="hide-sm">Destination</span><span>Protocol</span><span className="hide-sm">Len</span><span>Info</span>

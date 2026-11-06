@@ -1,6 +1,7 @@
 import * as Tabs from "@radix-ui/react-tabs";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AskPanel } from "./components/AskPanel.tsx";
+import { NetworkMap, VulnerabilityView, IecView } from "./components/ReviewWorkspace.tsx";
 import { AssetMap } from "./components/AssetMap.tsx";
 import { AttributionPanel } from "./components/AttributionPanel.tsx";
 import { CaseScreen, type CaseFields } from "./components/CaseScreen.tsx";
@@ -47,6 +48,9 @@ const NAV = [
 const VIEWS = [
   ["overview", "Overview"],
   ["assets", "Assets"],
+  ["network", "Network map"],
+  ["vulnerabilities", "Vulnerabilities"],
+  ["iec62443", "IEC 62443"],
   ["packets", "Packets"],
   ["talk", "Talk"],
   ["ot", "OT"],
@@ -447,7 +451,7 @@ export default function App() {
               {caseFields.sha256 && <span>SHA <b>{caseFields.sha256.slice(0, 12)}</b></span>}
               {engineLine && <span>{engineLine}</span>}
             </div>
-            <Tabs.Content value="packets" className="flex min-h-[70vh] flex-1 flex-col outline-none lg:min-h-0">
+            <Tabs.Content value="packets" className="flex min-h-0 flex-1 flex-col overflow-auto outline-none">
               <FilterBar value={filterText} error={compiled.error} shown={compiled.filter ? shown.length : ready.rows.length} total={ready.rows.length} onChange={setFilterText} />
               <PacketDesk
                 rows={shown}
@@ -480,6 +484,7 @@ export default function App() {
               {dossier && <InvestigationOverview dossier={dossier} headline={ready.analysis.headline} onPacket={jump} />}
               <Tables analysis={ready.analysis} onFilter={(expr) => { setFilterText(expr); setTab("packets"); }} />
             </Tabs.Content>
+            {dossier && ([['network', NetworkMap], ['vulnerabilities', VulnerabilityView], ['iec62443', IecView]] as const).map(([id, View]) => <Tabs.Content key={id} value={id} forceMount hidden={tab !== id} className="min-h-0 flex-1 overflow-auto outline-none"><View rows={ready.rows} analysis={ready.analysis} dossier={dossier} onPacket={jump} onFilter={(expr) => { setFilterText(expr); setTab("packets"); }} /></Tabs.Content>)}
             <Tabs.Content value="assets" className="min-h-0 flex-1 overflow-auto outline-none">
               {dossier && <AssetMap assets={dossier.assets} onPacket={jump} />}
             </Tabs.Content>
@@ -554,6 +559,7 @@ export default function App() {
           ))}</ul>
         </Modal>
         {tour != null && <TourCard step={tour} onClose={() => setTour(null)} onPrev={() => setTour((n) => Math.max(0, (n ?? 0) - 1))} onNext={() => setTour((n) => (n ?? 0) + 1)} />}
+        <div className="border-t border-line px-4 py-1 text-center font-mono text-[10px] text-muted">PRIMER · Network maps · Vulnerability review · IEC 62443 evidence workspace</div>
         <div className="ticker" aria-hidden="true"><div className="t"><span>DETECT<em>◆</em>VERIFY<em>◆</em>PROTECT<em>◆</em>SEGMENT<em>◆</em>MONITOR<em>◆</em>RESPOND<em>◆</em>PARSE<em>◆</em>EXPLAIN<em>◆</em>MAP<em>◆</em></span><span>DETECT<em>◆</em>VERIFY<em>◆</em>PROTECT<em>◆</em>SEGMENT<em>◆</em>MONITOR<em>◆</em>RESPOND<em>◆</em>PARSE<em>◆</em>EXPLAIN<em>◆</em>MAP<em>◆</em></span></div></div>
       </div>
     </TipProvider>
